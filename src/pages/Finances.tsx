@@ -1,17 +1,46 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Wallet, Plus, ArrowUpRight, Trash2, Activity, Target } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, Activity, Target, Calendar } from 'lucide-react';
+import ConfirmButton from '../components/ConfirmButton';
+import { toast } from 'sonner';
 
 export default function Finances() {
+    const [dateFilter, setDateFilter] = useState<'ALL' | 'TODAY' | '7D' | '30D'>('ALL');
     const [formData, setFormData] = useState({
         description: '', amount: '', type: 'ENTRADA'
     });
 
-    const transactions = useLiveQuery(() => db.transactions.reverse().toArray(), []);
-    const orders = useLiveQuery(() => db.orders.toArray(), []);
-    const products = useLiveQuery(() => db.products.toArray(), []);
-    const campaigns = useLiveQuery(() => db.campaigns.toArray(), []);
+    // Filter Logic
+    const isWithinFilter = (dateVal: any) => {
+        if (dateFilter === 'ALL') return true;
+        if (!dateVal) return false;
+
+        const date = new Date(dateVal);
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+
+        if (dateFilter === 'TODAY') {
+            return date.toDateString() === now.toDateString();
+        }
+
+        const diffDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
+
+        if (dateFilter === '7D') return diffDays <= 7;
+        if (dateFilter === '30D') return diffDays <= 30;
+
+        return true;
+    };
+
+    let transactions = useLiveQuery(() => db.transactions.reverse().toArray(), []) || [];
+    let orders = useLiveQuery(() => db.orders.toArray(), []) || [];
+    let products = useLiveQuery(() => db.products.toArray(), []) || [];
+    let campaigns = useLiveQuery(() => db.campaigns.toArray(), []) || [];
+
+    // Filter Apply
+    transactions = transactions.filter(t => isWithinFilter(t.date));
+    orders = orders.filter(o => isWithinFilter(o.createdAt));
+    campaigns = campaigns.filter(c => isWithinFilter(c.createdAt));
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,29 +53,29 @@ export default function Finances() {
             date: new Date()
         });
 
+        toast.success(`Transação salva: MT ${formData.amount}`);
         setFormData({ ...formData, description: '', amount: '' });
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm('Tem certeza em deletar esta transação?')) {
-            await db.transactions.delete(id);
-        }
+        await db.transactions.delete(id);
+        toast.info('Lançamento manual removido do livro caixa.');
     };
 
     const money = (val: number) => `MT ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
-    // Transações Manuais
-    const entradas = transactions?.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0) || 0;
-    const saidas = transactions?.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0) || 0;
+    // Transações Manuais Locais
+    const entradas = transactions.filter(t => t.type === 'ENTRADA').reduce((acc, t) => acc + t.amount, 0);
+    const saidas = transactions.filter(t => t.type === 'SAIDA').reduce((acc, t) => acc + t.amount, 0);
     const caixaManual = entradas - saidas;
 
-    // Cálculo Operacional (Kanban + Campanhas)
-    const deliveredOrders = orders?.filter(o => o.status === 'ENTREGUE') || [];
+    // Cálculo Operacional (Kanban + Campanhas) NO PERIODO
+    const deliveredOrders = orders.filter(o => o.status === 'ENTREGUE');
     let opRevenue = 0;
     let opCosts = 0;
 
     deliveredOrders.forEach(o => {
-        const prod = products?.find(p => p.id === o.productId);
+        const prod = products.find(p => p.id === o.productId);
         if (prod) {
             opRevenue += prod.price;
             opCosts += (prod.cost + prod.deliveryCost);
@@ -55,7 +84,7 @@ export default function Finances() {
         }
     });
 
-    const adSpends = campaigns?.reduce((acc, c) => acc + c.adSpend, 0) || 0;
+    const adSpends = campaigns.reduce((acc, c) => acc + c.adSpend, 0);
     const lucroOperacional = opRevenue - opCosts - adSpends;
 
     // Caixa Master Final
@@ -63,17 +92,33 @@ export default function Finances() {
 
     return (
         <div className="space-y-6">
-            <div className="border-b border-zinc-800 pb-4">
-                <h1 className="text-2xl font-black uppercase text-zinc-100 flex items-center gap-2 tracking-tight">
-                    <Wallet size={24} className="text-red-500" /> Visão de Caixa & Operação
-                </h1>
-                <p className="text-sm text-zinc-500 mt-1 uppercase tracking-widest text-[10px] font-bold">Resumo global incluindo resultados do Kanban</p>
+            <div className="border-b border-zinc-800 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <h1 className="text-2xl font-black uppercase text-zinc-100 flex items-center gap-2 tracking-tight">
+                        <Wallet size={24} className="text-red-500" /> Visão de Caixa & Operação
+                    </h1>
+                    <p className="text-sm text-zinc-500 mt-1 uppercase tracking-widest text-[10px] font-bold">Resumo global incluindo resultados do Kanban</p>
+                </div>
+
+                <div className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 px-3 py-1.5 focus-within:border-red-500 transition-colors shrink-0">
+                    <Calendar size={14} className="text-red-500" />
+                    <select
+                        value={dateFilter}
+                        onChange={(e: any) => setDateFilter(e.target.value)}
+                        className="bg-transparent text-[10px] text-zinc-300 font-bold uppercase tracking-widest outline-none cursor-pointer appearance-none"
+                    >
+                        <option value="ALL">Todo Período</option>
+                        <option value="TODAY">Apenas Hoje</option>
+                        <option value="7D">Últimos 7 Dias</option>
+                        <option value="30D">Últimos 30 Dias</option>
+                    </select>
+                </div>
             </div>
 
-            {/* Top Cards (Fusão Operacional) */}
+            {/* Top Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-zinc-950 border border-zinc-800 p-6 relative overflow-hidden">
-                    <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-1 flex items-center gap-2"><ArrowUpRight size={14} /> Caixa Fixo (Manual)</p>
+                    <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-1 flex items-center gap-2"><ArrowUpRight size={14} /> Caixa Fixo ({dateFilter})</p>
                     <h2 className={`text-2xl font-black tracking-tighter text-zinc-300`}>
                         {money(caixaManual)}
                     </h2>
@@ -81,7 +126,7 @@ export default function Finances() {
 
                 <div className="bg-zinc-950 border border-zinc-800 p-6">
                     <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-1 flex items-center gap-2">
-                        <Activity size={14} className={lucroOperacional >= 0 ? "text-emerald-500" : "text-red-500"} /> Resultado Operacional (Kanban)
+                        <Activity size={14} className={lucroOperacional >= 0 ? "text-emerald-500" : "text-red-500"} /> Saldo da Operação ({dateFilter})
                     </p>
                     <h2 className={`text-2xl font-black tracking-tighter ${lucroOperacional >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                         {lucroOperacional >= 0 ? '+' : ''}{money(lucroOperacional)}
@@ -90,7 +135,7 @@ export default function Finances() {
 
                 <div className="bg-zinc-950 border-2 border-red-900/50 p-6 shadow-[inset_0px_0px_60px_rgba(220,38,38,0.05)]">
                     <p className="text-[10px] uppercase font-bold text-red-500 tracking-widest mb-1 flex items-center gap-2">
-                        <Target size={14} className="text-red-500" /> Saldo Líquido Final da Empresa
+                        <Target size={14} className="text-red-500" /> Saldo Líquido Desse Período
                     </p>
                     <h2 className={`text-4xl font-black tracking-tighter ${caixaGlobal >= 0 ? 'text-white' : 'text-red-500'}`}>
                         {money(caixaGlobal)}
@@ -137,29 +182,29 @@ export default function Finances() {
                     <div className="bg-zinc-950 border border-zinc-800">
                         <div className="grid grid-cols-12 gap-4 p-4 border-b border-zinc-800 bg-zinc-900/50">
                             <div className="col-span-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Data</div>
-                            <div className="col-span-5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Registro Manual</div>
-                            <div className="col-span-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-center">Tipo</div>
-                            <div className="col-span-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-right">Montante</div>
+                            <div className="col-span-4 lg:col-span-5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Registro Manual</div>
+                            <div className="col-span-3 lg:col-span-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-center">Tipo</div>
+                            <div className="col-span-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-right">Valor</div>
                             <div className="col-span-1"></div>
                         </div>
 
                         {(!transactions || transactions.length === 0) && (
                             <div className="p-12 text-center text-sm font-bold uppercase tracking-widest text-zinc-600">
-                                Nenhum lançamento manual no sistema.
+                                Nenhum lançamento neste período.
                             </div>
                         )}
 
                         <div className="divide-y divide-zinc-900 overflow-y-auto max-h-[600px]">
                             {transactions?.map(t => (
                                 <div key={t.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-zinc-900 transition-colors group">
-                                    <div className="col-span-2 text-xs text-zinc-500 font-medium">
+                                    <div className="col-span-2 text-xs text-zinc-500 font-medium whitespace-nowrap">
                                         {new Date(t.date).toLocaleDateString('pt-BR')}
                                     </div>
-                                    <div className="col-span-5 text-sm font-bold text-zinc-300">
+                                    <div className="col-span-4 lg:col-span-5 text-sm font-bold text-zinc-300 truncate">
                                         {t.description}
                                     </div>
-                                    <div className="col-span-2 text-center">
-                                        <span className={`text-[10px] px-2 py-1 uppercase font-bold tracking-wider border ${t.type === 'ENTRADA' ? 'text-emerald-500 border-emerald-900/50 bg-emerald-950/20' : 'text-red-500 border-red-900/50 bg-red-950/20'}`}>
+                                    <div className="col-span-3 lg:col-span-2 text-center">
+                                        <span className={`text-[9px] lg:text-[10px] px-2 py-1 uppercase font-bold tracking-wider border ${t.type === 'ENTRADA' ? 'text-emerald-500 border-emerald-900/50 bg-emerald-950/20' : 'text-red-500 border-red-900/50 bg-red-950/20'}`}>
                                             {t.type}
                                         </span>
                                     </div>
@@ -167,9 +212,7 @@ export default function Finances() {
                                         {t.type === 'ENTRADA' ? '+' : '-'}{money(t.amount)}
                                     </div>
                                     <div className="col-span-1 text-right">
-                                        <button onClick={() => handleDelete(t.id!)} className="text-zinc-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <ConfirmButton onConfirm={() => handleDelete(t.id!)} className="text-zinc-600 hover:text-red-500 transition-colors" iconSize={16} />
                                     </div>
                                 </div>
                             ))}

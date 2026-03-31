@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Box, Plus, Trash2, PackageSearch } from 'lucide-react';
+import { Box, Plus, PackageSearch } from 'lucide-react';
+import ConfirmButton from '../components/ConfirmButton';
+import { toast } from 'sonner';
 
 export default function Products() {
     const [formData, setFormData] = useState({
@@ -21,13 +23,13 @@ export default function Products() {
             deliveryCost: parseFloat(formData.deliveryCost),
             createdAt: new Date()
         });
+        toast.success('Produto foi adicionado na base!');
         setFormData({ name: '', price: '', cost: '', deliveryCost: '' });
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm('Tem certeza? Isso pode quebrar referências em campanhas.')) {
-            await db.products.delete(id);
-        }
+        await db.products.delete(id);
+        toast.info('Produto arquivado/removido.');
     };
 
     const money = (val: number) => `MT ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -96,9 +98,7 @@ export default function Products() {
                                 </div>
                             </div>
 
-                            <button onClick={() => handleDelete(p.id!)} className="p-2 text-zinc-600 hover:text-red-500 bg-zinc-900 hover:bg-zinc-800 transition-colors">
-                                <Trash2 size={16} />
-                            </button>
+                            <ConfirmButton onConfirm={() => handleDelete(p.id!)} className="p-2 border border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-red-500 hover:border-red-500 transition-colors" />
                         </div>
                     ))}
                 </div>

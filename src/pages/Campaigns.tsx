@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Megaphone, Plus, Target, DollarSign, Activity, Trash2 } from 'lucide-react';
+import { Megaphone, Plus, Target, DollarSign, Activity } from 'lucide-react';
+import ConfirmButton from '../components/ConfirmButton';
+import { toast } from 'sonner';
 
 export default function Campaigns() {
     const [formData, setFormData] = useState({
@@ -24,13 +26,13 @@ export default function Campaigns() {
             createdAt: new Date()
         });
 
-        setFormData({ ...formData, name: '', adSpend: '', leadsGenerated: '' });
+        toast.success('Campanha tracionada (Ativa)!');
+        setFormData({ name: '', productId: '', adSpend: '', leadsGenerated: '' });
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm('Tem certeza? Isso pode quebrar referências nos pedidos.')) {
-            await db.campaigns.delete(id);
-        }
+        await db.campaigns.delete(id);
+        toast.info('A campanha foi removida dos registros.');
     };
 
     const money = (val: number) => `MT ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -95,10 +97,8 @@ export default function Campaigns() {
                         const campaignOrders = orders?.filter(o => o.campaignId === c.id) || [];
                         const salesCount = campaignOrders.length;
 
-                        // Faturamento Bruto puxado do Pedido (caso tenha alterado), mas o default é o do Produto
                         const grossRevenue = campaignOrders.reduce((sum, o) => sum + o.total, 0);
 
-                        // Custos atrelados ao que foi vendido
                         const totalProductCost = product ? (salesCount * product.cost) : 0;
                         const totalDeliveryCost = product ? (salesCount * product.deliveryCost) : 0;
                         const netProfit = grossRevenue - totalProductCost - totalDeliveryCost - c.adSpend;
@@ -110,9 +110,9 @@ export default function Campaigns() {
 
                         return (
                             <div key={c.id} className="bg-zinc-950 border border-zinc-800 p-6 flex flex-col group relative overflow-hidden transition-colors hover:border-zinc-700">
-                                <button onClick={() => handleDelete(c.id!)} className="absolute top-4 right-4 p-2 text-zinc-600 hover:text-red-500 bg-zinc-900 hover:bg-zinc-800 transition-colors z-10 opacity-0 group-hover:opacity-100">
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <ConfirmButton onConfirm={() => handleDelete(c.id!)} className="p-2 border border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-red-500 hover:border-red-500 transition-colors" />
+                                </div>
 
                                 <div className="flex justify-between items-start mb-4 border-b border-zinc-900 pb-4">
                                     <div>
