@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Activity, Target } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, Trash2, Activity, Target } from 'lucide-react';
 
 export default function Finances() {
     const [formData, setFormData] = useState({
