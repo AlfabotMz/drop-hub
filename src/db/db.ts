@@ -50,21 +50,29 @@ export interface Transaction {
     date: Date;
 }
 
+export interface Setting {
+    id?: number;
+    key: string;
+    value: any;
+}
+
 const db = new Dexie('WinikeDatabase') as Dexie & {
     products: EntityTable<Product, 'id'>;
     campaigns: EntityTable<Campaign, 'id'>;
     leads: EntityTable<Lead, 'id'>;
     orders: EntityTable<Order, 'id'>;
     transactions: EntityTable<Transaction, 'id'>;
+    settings: EntityTable<Setting, 'id'>;
 };
 
-// Reiniciando as stores na view completa para a Versão 3
-db.version(3).stores({
+// Reiniciando as stores na view completa para a Versão 4
+db.version(4).stores({
     products: '++id, name',
     campaigns: '++id, productId, createdAt',
     leads: '++id, phone, campaignId, status, encomendou, createdAt',
     orders: '++id, leadId, campaignId, productId, status, createdAt',
-    transactions: '++id, type, date'
+    transactions: '++id, type, date',
+    settings: 'key'
 }).upgrade(() => {
     // Upgrades do banco relacional
 });

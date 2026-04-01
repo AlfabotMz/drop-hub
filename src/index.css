@@ -1,18 +1,68 @@
 @import "tailwindcss";
 
 @theme {
-  --color-winike-red: #d90429;
-  --color-winike-red-dark: #ef233c;
+  --color-green-50: #E8F9F1;
+  --color-green-100: #C2EDD8;
+  --color-green-200: #86D9AC;
+  --color-green-400: #2EBB74;
+  --color-green-500: #1FA05F;
+  --color-green-600: #16834C;
+  --color-green-700: #0F6238;
+  --color-green-800: #094428;
+  --color-green-900: #042B18;
+  --color-neon-mint: #00FFB0;
+  --color-lime: #D4F54A;
+  --color-danger: #E24B4A;
+  --color-warning: #BA7517;
+  --color-success: #2EBB74;
+  --color-info: #378ADD;
 }
 
 @layer base {
   body {
-    @apply bg-zinc-950 text-zinc-100 antialiased overflow-hidden h-screen w-screen m-0 p-0;
+    @apply bg-[#0D0D0D] text-[#F0EFE8] antialiased overflow-hidden h-screen w-screen m-0 p-0 font-sans;
+  }
+}
+
+/* Base custom classes matching Design System */
+@layer utilities {
+  .border-default {
+    border-color: rgba(255, 255, 255, 0.12);
+    border-style: solid;
+    border-width: 0.5px;
   }
 
-  /* Reset default border radiuses applied generally */
-  * {
-    border-radius: 0 !important;
+  .border-accent {
+    border: 0.5px solid #86D9AC;
+  }
+
+  .btn-primary {
+    @apply flex items-center gap-1.5 font-medium cursor-pointer transition-transform bg-green-400 text-white rounded-md border-none px-4 py-2 hover:bg-green-600 focus-visible:ring-2 focus-visible:ring-green-400/25;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .card {
+    background-color: #1A1A1A;
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    @apply rounded-xl p-4;
+  }
+
+  .card-dark {
+    @apply bg-green-800 text-green-100 border-none rounded-xl p-4;
+  }
+
+  .card-accent {
+    background-color: rgba(9, 68, 40, 0.25);
+    border: 0.5px solid #86D9AC;
+    @apply rounded-xl p-4 text-green-100;
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--color-green-400);
+    @apply rounded-xl bg-green-900/30 p-10 text-center transition-colors cursor-pointer hover:bg-green-800/50 hover:border-green-600;
   }
 }
 
@@ -22,13 +72,13 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-zinc-950;
+  @apply bg-[#0D0D0D];
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-800;
+  @apply bg-[#1A1A1A] rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-700;
+  @apply bg-[#2A2A2A];
 }
